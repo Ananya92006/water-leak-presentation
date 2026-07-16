@@ -1,0 +1,14 @@
+[
+  "flow_rate_lpm",
+  "pressure_bar",
+  "temperature_c",
+  "humidity_pct",
+  "hour_of_day",
+  "day_of_week",
+  "is_weekend",
+  "wifi_rssi_dbm",
+  "flow_rolling_mean",
+  "flow_rolling_std",
+  "pressure_deviation",
+  "flow_zscore"
+]

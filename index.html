@@ -1,0 +1,2271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scaling & Implementation Strategy — Smart Water Leak Detection</title>
+    <meta name="description" content="From a 63-Node Pilot to a Campus-Wide Water Intelligence Network. ML-Based Smart Water Leakage Detection & Conservation System.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* ========== RESET & BASE ========== */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-primary: #0a1628;
+            --bg-secondary: #111d35;
+            --bg-card: #152040;
+            --bg-card-alt: #1a2850;
+            --accent-cyan: #00e5cc;
+            --accent-teal: #00b8a9;
+            --accent-blue: #4facfe;
+            --accent-purple: #7c5cfc;
+            --accent-orange: #ff8c42;
+            --accent-red: #ff5757;
+            --accent-green: #2ecc71;
+            --accent-yellow: #f1c40f;
+            --text-primary: #e8edf5;
+            --text-secondary: #8a9bc0;
+            --text-muted: #5a6d8a;
+            --border-color: rgba(0, 229, 204, 0.15);
+            --glow-cyan: rgba(0, 229, 204, 0.3);
+            --glow-blue: rgba(79, 172, 254, 0.3);
+        }
+
+        html { font-size: 16px; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* ========== PRESENTATION CONTAINER ========== */
+        .presentation {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 50px 70px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.6s ease, transform 0.6s ease;
+            transform: translateX(40px);
+            overflow-y: auto;
+            overflow-x: hidden;
+            background: var(--bg-primary);
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0);
+        }
+
+        .slide.prev {
+            transform: translateX(-40px);
+        }
+
+        /* Background decorations */
+        .slide::before {
+            content: '';
+            position: absolute;
+            top: -200px; right: -200px;
+            width: 600px; height: 600px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0, 229, 204, 0.06) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .slide::after {
+            content: '';
+            position: absolute;
+            bottom: -150px; left: -150px;
+            width: 400px; height: 400px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(79, 172, 254, 0.04) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .slide > * { position: relative; z-index: 1; }
+
+        /* ========== TYPOGRAPHY ========== */
+        .slide-tag {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--accent-cyan);
+            margin-bottom: 14px;
+        }
+
+        .slide-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.4rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.2;
+            margin-bottom: 8px;
+        }
+
+        .slide-subtitle {
+            font-size: 1.05rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+            margin-bottom: 32px;
+            font-style: italic;
+        }
+
+        h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        /* ========== CARDS ========== */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 28px 30px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 32px rgba(0, 229, 204, 0.08);
+        }
+
+        .card-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-title .icon {
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .card ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .card ul li {
+            position: relative;
+            padding-left: 20px;
+            margin-bottom: 10px;
+            font-size: 0.92rem;
+            color: var(--text-secondary);
+            line-height: 1.55;
+        }
+
+        .card ul li::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 8px;
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+        }
+
+        /* ========== GRID LAYOUTS ========== */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 22px; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+
+        /* ========== STAT CARDS ========== */
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .stat-card .stat-value {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.6rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-card .stat-label {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            margin-top: 6px;
+            font-weight: 500;
+        }
+
+        .stat-card .stat-detail {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* ========== META BOX (Title slide) ========== */
+        .meta-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 18px 26px;
+            margin-bottom: 28px;
+            font-size: 0.82rem;
+        }
+
+        .meta-box .meta-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .meta-box .meta-row:last-child { margin-bottom: 0; }
+
+        .meta-label {
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.7rem;
+            min-width: 100px;
+        }
+
+        .meta-label.domain { color: var(--accent-cyan); }
+        .meta-label.prepared { color: var(--accent-orange); }
+        .meta-label.date { color: var(--text-muted); }
+        .meta-label.filename { color: var(--accent-cyan); }
+
+        .meta-value { color: var(--text-secondary); }
+
+        /* ========== TITLE SLIDE SPECIAL ========== */
+        .title-main {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.8rem;
+            font-weight: 800;
+            line-height: 1.15;
+            margin-bottom: 14px;
+            border-left: 4px solid var(--accent-cyan);
+            padding-left: 22px;
+        }
+
+        .title-sub {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            font-style: italic;
+            margin-bottom: 24px;
+        }
+
+        /* ========== PHASE CARDS ========== */
+        .phase-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 26px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .phase-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 4px;
+        }
+
+        .phase-card.phase-1::before { background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan)); }
+        .phase-card.phase-2::before { background: linear-gradient(90deg, var(--accent-cyan), var(--accent-blue)); }
+        .phase-card.phase-3::before { background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple)); }
+
+        .phase-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .phase-badge {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 4px 12px;
+            border-radius: 20px;
+            background: rgba(0, 229, 204, 0.1);
+            color: var(--accent-cyan);
+        }
+
+        .phase-timeline {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        .phase-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .phase-nodes {
+            font-size: 0.85rem;
+            color: var(--accent-cyan);
+            font-weight: 600;
+            margin-bottom: 14px;
+        }
+
+        .phase-card ul {
+            list-style: none;
+        }
+
+        .phase-card ul li {
+            position: relative;
+            padding-left: 18px;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .phase-card ul li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--accent-cyan);
+            font-weight: 700;
+        }
+
+        /* ========== ARCHITECTURE DIAGRAM ========== */
+        .arch-layer {
+            display: flex;
+            align-items: stretch;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+
+        .arch-label {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            transform: rotate(180deg);
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 10px;
+            border-radius: 10px 0 0 10px;
+            min-width: 38px;
+        }
+
+        .arch-label.edge { background: rgba(46, 204, 113, 0.15); color: var(--accent-green); }
+        .arch-label.gateway { background: rgba(0, 229, 204, 0.15); color: var(--accent-cyan); }
+        .arch-label.cloud { background: rgba(79, 172, 254, 0.15); color: var(--accent-blue); }
+        .arch-label.app { background: rgba(124, 92, 252, 0.15); color: var(--accent-purple); }
+
+        .arch-items {
+            display: flex;
+            gap: 12px;
+            flex: 1;
+            flex-wrap: wrap;
+        }
+
+        .arch-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 14px 18px;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            flex: 1;
+            min-width: 140px;
+            text-align: center;
+        }
+
+        .arch-item strong {
+            display: block;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            font-size: 0.85rem;
+        }
+
+        .arch-connector {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            margin: 4px 0;
+            padding-left: 38px;
+        }
+
+        /* ========== COST TABLE ========== */
+        .cost-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            border-radius: 12px;
+            overflow: hidden;
+            font-size: 0.88rem;
+        }
+
+        .cost-table thead th {
+            background: var(--bg-card-alt);
+            color: var(--accent-cyan);
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 600;
+            font-size: 0.78rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 14px 18px;
+            text-align: left;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .cost-table tbody td {
+            padding: 12px 18px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        .cost-table tbody tr {
+            background: var(--bg-card);
+            transition: background 0.2s;
+        }
+
+        .cost-table tbody tr:hover {
+            background: var(--bg-card-alt);
+        }
+
+        .cost-table .total-row td {
+            font-weight: 700;
+            color: var(--text-primary);
+            background: rgba(0, 229, 204, 0.06);
+            border-top: 2px solid var(--accent-cyan);
+        }
+
+        .highlight-value {
+            color: var(--accent-cyan) !important;
+            font-weight: 700;
+        }
+
+        /* ========== TIMELINE ========== */
+        .timeline {
+            display: flex;
+            gap: 0;
+            position: relative;
+            margin-top: 12px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            top: 22px;
+            left: 20px;
+            right: 20px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan), var(--accent-blue), var(--accent-purple));
+            border-radius: 4px;
+        }
+
+        .timeline-item {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            padding-top: 44px;
+        }
+
+        .timeline-item .dot {
+            position: absolute;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 22px; height: 22px;
+            border-radius: 50%;
+            border: 3px solid var(--accent-cyan);
+            background: var(--bg-primary);
+            z-index: 2;
+        }
+
+        .timeline-item .dot.active {
+            background: var(--accent-cyan);
+            box-shadow: 0 0 16px var(--glow-cyan);
+        }
+
+        .timeline-item .tl-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .timeline-item .tl-desc {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* ========== RISK MATRIX ========== */
+        .risk-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px 22px;
+            display: flex;
+            gap: 16px;
+            margin-bottom: 12px;
+            transition: transform 0.2s;
+        }
+
+        .risk-item:hover { transform: translateX(4px); }
+
+        .risk-level {
+            flex-shrink: 0;
+            width: 50px; height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+        }
+
+        .risk-level.high { background: rgba(255, 87, 87, 0.15); }
+        .risk-level.medium { background: rgba(255, 140, 66, 0.15); }
+        .risk-level.low { background: rgba(46, 204, 113, 0.15); }
+
+        .risk-content { flex: 1; }
+
+        .risk-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .risk-desc {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .risk-mitigation {
+            font-size: 0.78rem;
+            color: var(--accent-green);
+            font-weight: 500;
+        }
+
+        .risk-mitigation::before {
+            content: '✓ Mitigation: ';
+            font-weight: 700;
+        }
+
+        /* ========== IMPACT METRICS ========== */
+        .impact-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 24px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .impact-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 3px;
+        }
+
+        .impact-card.water::before { background: var(--accent-blue); }
+        .impact-card.cost::before { background: var(--accent-green); }
+        .impact-card.response::before { background: var(--accent-orange); }
+        .impact-card.carbon::before { background: var(--accent-purple); }
+
+        .impact-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .impact-value {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 800;
+        }
+
+        .impact-card.water .impact-value { color: var(--accent-blue); }
+        .impact-card.cost .impact-value { color: var(--accent-green); }
+        .impact-card.response .impact-value { color: var(--accent-orange); }
+        .impact-card.carbon .impact-value { color: var(--accent-purple); }
+
+        .impact-label {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            margin-top: 6px;
+            font-weight: 500;
+        }
+
+        .impact-from {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* ========== PROGRESS BARS ========== */
+        .progress-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+
+        .progress-label {
+            font-size: 0.82rem;
+            font-weight: 600;
+            min-width: 140px;
+            color: var(--text-secondary);
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 10px;
+            background: var(--bg-card-alt);
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 8px;
+            transition: width 1.5s ease-out;
+            position: relative;
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0; right: 0;
+            width: 20px; height: 100%;
+            background: rgba(255,255,255,0.2);
+            border-radius: 0 8px 8px 0;
+        }
+
+        .progress-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            font-weight: 600;
+            min-width: 48px;
+            text-align: right;
+            color: var(--accent-cyan);
+        }
+
+        /* ========== ML MODEL SECTION ========== */
+        .model-comparison {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 24px;
+            align-items: center;
+        }
+
+        .model-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 26px;
+        }
+
+        .model-box h3 {
+            text-align: center;
+            margin-bottom: 18px;
+        }
+
+        .model-arrow {
+            font-size: 2rem;
+            color: var(--accent-cyan);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .model-arrow span {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.88rem;
+        }
+
+        .metric-row:last-child { border-bottom: none; }
+
+        .metric-name { color: var(--text-secondary); }
+        .metric-val { font-weight: 700; color: var(--accent-cyan); font-family: 'JetBrains Mono', monospace; }
+
+        /* ========== GANTT-STYLE TIMELINE ========== */
+        .gantt {
+            width: 100%;
+        }
+
+        .gantt-header {
+            display: grid;
+            grid-template-columns: 160px repeat(12, 1fr);
+            gap: 0;
+            margin-bottom: 8px;
+        }
+
+        .gantt-header span {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.68rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-align: center;
+        }
+
+        .gantt-header span:first-child { text-align: left; }
+
+        .gantt-row {
+            display: grid;
+            grid-template-columns: 160px repeat(12, 1fr);
+            gap: 0;
+            margin-bottom: 6px;
+            align-items: center;
+            min-height: 36px;
+        }
+
+        .gantt-task {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            padding-right: 12px;
+        }
+
+        .gantt-bar {
+            border-radius: 6px;
+            height: 26px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: white;
+        }
+
+        .gantt-bar.green { background: linear-gradient(90deg, var(--accent-green), #27ae60); }
+        .gantt-bar.cyan { background: linear-gradient(90deg, var(--accent-teal), var(--accent-cyan)); }
+        .gantt-bar.blue { background: linear-gradient(90deg, var(--accent-blue), #2196F3); }
+        .gantt-bar.purple { background: linear-gradient(90deg, var(--accent-purple), #9b59b6); }
+        .gantt-bar.orange { background: linear-gradient(90deg, var(--accent-orange), #e67e22); }
+
+        /* ========== NAVIGATION ========== */
+        .nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: rgba(10, 22, 40, 0.95);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            z-index: 100;
+        }
+
+        .nav-info {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .nav-dots {
+            display: flex;
+            gap: 8px;
+        }
+
+        .nav-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            padding: 0;
+        }
+
+        .nav-dot.active {
+            background: var(--accent-cyan);
+            width: 24px;
+            border-radius: 4px;
+            box-shadow: 0 0 10px var(--glow-cyan);
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .nav-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.82rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: var(--bg-card-alt);
+            border-color: var(--accent-cyan);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        /* ========== FOOTER ========== */
+        .slide-footer {
+            position: absolute;
+            bottom: 70px;
+            left: 70px;
+            right: 70px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            z-index: 1;
+        }
+
+        /* ========== SPECIAL ELEMENTS ========== */
+        .divider {
+            width: 60px; height: 3px;
+            background: linear-gradient(90deg, var(--accent-cyan), transparent);
+            border-radius: 2px;
+            margin: 18px 0;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .tag.green { background: rgba(46, 204, 113, 0.15); color: var(--accent-green); }
+        .tag.cyan { background: rgba(0, 229, 204, 0.15); color: var(--accent-cyan); }
+        .tag.blue { background: rgba(79, 172, 254, 0.15); color: var(--accent-blue); }
+        .tag.purple { background: rgba(124, 92, 252, 0.15); color: var(--accent-purple); }
+        .tag.orange { background: rgba(255, 140, 66, 0.15); color: var(--accent-orange); }
+        .tag.red { background: rgba(255, 87, 87, 0.15); color: var(--accent-red); }
+
+        .flex-row { display: flex; gap: 16px; align-items: center; }
+        .flex-grow { flex: 1; }
+        .mb-8 { margin-bottom: 8px; }
+        .mb-16 { margin-bottom: 16px; }
+        .mb-24 { margin-bottom: 24px; }
+        .mb-32 { margin-bottom: 32px; }
+        .mt-auto { margin-top: auto; }
+
+        /* ========== CIRCULAR CHART ========== */
+        .donut-chart {
+            width: 120px; height: 120px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            position: relative;
+        }
+
+        .donut-chart .donut-inner {
+            width: 80px; height: 80px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 1;
+        }
+
+        .donut-chart .donut-inner .val {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: var(--accent-cyan);
+        }
+
+        .donut-chart .donut-inner .lbl {
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* ========== KPI ROW ========== */
+        .kpi-row {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .kpi-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 18px 22px;
+            flex: 1;
+            min-width: 170px;
+        }
+
+        .kpi-item .kpi-label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .kpi-item .kpi-value {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--accent-cyan);
+        }
+
+        .kpi-item .kpi-unit {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        /* ========== CALL TO ACTION ========== */
+        .cta-box {
+            background: linear-gradient(135deg, rgba(0, 229, 204, 0.08), rgba(79, 172, 254, 0.08));
+            border: 1px solid rgba(0, 229, 204, 0.2);
+            border-radius: 16px;
+            padding: 36px 40px;
+            text-align: center;
+        }
+
+        .cta-box h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 800;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .cta-box p {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto 20px;
+            line-height: 1.6;
+        }
+
+        .cta-tags {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .cta-tag {
+            padding: 8px 18px;
+            border-radius: 24px;
+            background: rgba(0, 229, 204, 0.1);
+            border: 1px solid rgba(0, 229, 204, 0.2);
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--accent-cyan);
+        }
+
+        /* ========== SLIDE-SPECIFIC ADJUSTMENTS ========== */
+        .slide { padding-bottom: 80px; }
+
+        /* ========== ANIMATE IN ========== */
+        .slide.active .card,
+        .slide.active .stat-card,
+        .slide.active .phase-card,
+        .slide.active .impact-card,
+        .slide.active .risk-item,
+        .slide.active .kpi-item {
+            animation: fadeUp 0.5s ease forwards;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .slide.active .card:nth-child(2),
+        .slide.active .stat-card:nth-child(2),
+        .slide.active .phase-card:nth-child(2),
+        .slide.active .impact-card:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+
+        .slide.active .card:nth-child(3),
+        .slide.active .stat-card:nth-child(3),
+        .slide.active .phase-card:nth-child(3),
+        .slide.active .impact-card:nth-child(3) {
+            animation-delay: 0.2s;
+        }
+
+        .slide.active .card:nth-child(4),
+        .slide.active .stat-card:nth-child(4),
+        .slide.active .impact-card:nth-child(4) {
+            animation-delay: 0.3s;
+        }
+
+        /* ========== DECORATIVE CIRCLES ========== */
+        .deco-circle {
+            position: absolute;
+            border-radius: 50%;
+            border: 2px solid rgba(0, 229, 204, 0.08);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .deco-circle.c1 { width: 300px; height: 300px; top: -80px; right: -60px; }
+        .deco-circle.c2 { width: 200px; height: 200px; top: 20px; right: 0px; }
+        .deco-circle.c3 { width: 180px; height: 180px; bottom: 60px; right: -40px; border-color: rgba(79, 172, 254, 0.06); }
+
+        /* ========== SCROLLBAR ========== */
+        .slide::-webkit-scrollbar { width: 4px; }
+        .slide::-webkit-scrollbar-track { background: transparent; }
+        .slide::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 4px; }
+
+        /* ========== FEATURE LIST ========== */
+        .feature-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .feature-item .fi-icon {
+            width: 28px; height: 28px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        /* ========== SDG BADGES ========== */
+        .sdg-row {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .sdg-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 14px 20px;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .sdg-number {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .sdg-number.sdg6 { background: #26bde2; }
+        .sdg-number.sdg9 { background: #f36d25; }
+        .sdg-number.sdg11 { background: #f99d26; }
+        .sdg-number.sdg12 { background: #bf8b2e; }
+        .sdg-number.sdg13 { background: #3f7e44; }
+
+        .sdg-text {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            line-height: 1.3;
+        }
+
+        .sdg-text strong {
+            display: block;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="presentation" id="presentation">
+
+        <!-- ===================== SLIDE 1: TITLE ===================== -->
+        <div class="slide active" id="slide-0">
+            <div class="deco-circle c1"></div>
+            <div class="deco-circle c2"></div>
+            <div class="deco-circle c3"></div>
+
+            <p class="slide-tag">Scaling & Implementation Strategy</p>
+
+            <h1 class="title-main">
+                From a 63-Node Pilot to a<br>
+                Campus-Wide Water Intelligence Network
+            </h1>
+
+            <p class="title-sub">ML-Based Smart Water Leakage Detection & Conservation System</p>
+
+            <div class="meta-box">
+                <div class="meta-row">
+                    <span class="meta-label domain">Domain:</span>
+                    <span class="meta-value">Water Systems (Sustainability & Resource Management)</span>
+                </div>
+                <div class="meta-row">
+                    <span class="meta-label prepared">Prepared By:</span>
+                    <span class="meta-value">Nitesh Prajapati — Babu Banarasi Das Northern India Institute of Technology (AKTU) &bull; Ananya Gupta — Madan Mohan Malaviya University of Technology</span>
+                </div>
+                <div class="meta-row">
+                    <span class="meta-label date">Date:</span>
+                    <span class="meta-value">July 4, 2026</span>
+                    <span style="margin-left: 16px; color: var(--text-muted);">|</span>
+                    <span class="meta-label filename" style="margin-left: 16px;">Filename:</span>
+                    <span class="meta-value">Nitesh_Ananya_ScalingStrategy.pdf</span>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">
+                        <div class="icon" style="background: rgba(255, 140, 66, 0.15);">⚠️</div>
+                        The Problem
+                    </div>
+                    <ul>
+                        <li>Institutional campuses (hostels, academic blocks) lose enormous volumes of freshwater to hidden pipe ruptures and tank overflows.</li>
+                        <li>Management is reactive — leaks surface only after a bill spike or a visible flood, long after damage begins.</li>
+                        <li>Fixed threshold alarms fail: they miss slow leaks and drown staff in false alerts.</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <div class="card-title">
+                        <div class="icon" style="background: rgba(0, 229, 204, 0.15);">💧</div>
+                        Our Solution
+                    </div>
+                    <ul>
+                        <li><strong>Hardware-Agnostic Ingestion:</strong> Connects to off-the-shelf smart meters or existing campus SCADA telemetry.</li>
+                        <li><strong>WaterSense AI Engine:</strong> A Random Forest model learns time-of-day baselines and flags anomalies at >90% confidence (F1: 89.8%, ROC-AUC: 0.99).</li>
+                        <li>Confirmed leaks trigger instant alerts to maintenance — shrinking response time from days to minutes.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Nitesh Prajapati & Ananya Gupta &ensp;|&ensp; Smart Water Leak Detection</span>
+                <span>1 / 12</span>
+            </div>
+        </div>
+
+        <!-- ===================== SLIDE 2: PILOT OVERVIEW ===================== -->
+        <div class="slide" id="slide-1">
+            <p class="slide-tag">Current State</p>
+            <h2 class="slide-title">63-Node Pilot: Architecture & Coverage</h2>
+            <p class="slide-subtitle">Proof-of-concept deployment across BBDNIIT campus infrastructure</p>
+
+            <div class="grid-4 mb-24">
+                <div class="stat-card">
+                    <div class="stat-value">63</div>
+                    <div class="stat-label">Sensor Nodes</div>
+                    <div class="stat-detail">57 Flow + 6 Tank Sensors</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">6</div>
+                    <div class="stat-label">Buildings Covered</div>
+                    <div class="stat-detail">3 Hostels, 2 Academic, 1 Canteen</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">127K</div>
+                    <div class="stat-label">Data Points</div>
+                    <div class="stat-detail">10-min interval, 23 features</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">14</div>
+                    <div class="stat-label">Days Live</div>
+                    <div class="stat-detail">Continuous Monitoring</div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">
+                        <div class="icon" style="background: rgba(0, 229, 204, 0.15);">🔄</div>
+                        Data Ingestion Layer (Hardware Agnostic)
+                    </div>
+                    <ul>
+                        <li><strong>Standard Sensor Compatibility:</strong> Ingests data from standard pulse flow sensors (YF-S201) & ultrasonic tank gauges (HC-SR04).</li>
+                        <li><strong>No Custom Hardware Required:</strong> Plugs directly into existing campus Wi-Fi/LoRa gateways or third-party IoT controllers (ESP32/Raspberry Pi).</li>
+                        <li><strong>Multi-Protocol Support:</strong> Lightweight REST APIs & MQTT telemetry streams for seamless, vendor-neutral data collection.</li>
+                        <li><strong>Edge Pre-Processing:</strong> Real-time filtering of sensor noise and transmission dropouts before cloud ingestion.</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <div class="card-title">
+                        <div class="icon" style="background: rgba(79, 172, 254, 0.15);">☁️</div>
+                        Core Software & AI Stack
+                    </div>
+                    <ul>
+                        <li><strong>Cloud Data Pipeline:</strong> Firebase Realtime Database & InfluxDB time-series buffering for high-throughput sensor telemetry.</li>
+                        <li><strong>Machine Learning Engine:</strong> Python-based scikit-learn Random Forest model trained on 12 key rolling flow & pressure features.</li>
+                        <li><strong>Real-Time Visualization:</strong> Interactive Streamlit dashboard displaying live campus leak risk heatmaps and pressure z-scores.</li>
+                        <li><strong>Automated Dispatch:</strong> Twilio SMS & email alert integration with severity grading and location pinpointing.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Nitesh Prajapati & Ananya Gupta &ensp;|&ensp; Smart Water Leak Detection</span>
+                <span>2 / 12</span>
+            </div>
+        </div>
+
+        <!-- ===================== SLIDE 3: PILOT RESULTS ===================== -->
+        <div class="slide" id="slide-2">
+            <p class="slide-tag">Pilot Performance</p>
+            <h2 class="slide-title">Key Results from the 63-Node Pilot</h2>
+            <p class="slide-subtitle">14-day validation period — 127,008 readings across 63 nodes, 20 leak scenarios detected</p>
+
+            <div class="grid-4 mb-24">
+                <div class="stat-card">
+                    <div class="stat-value">89.8%</div>
+                    <div class="stat-label">Detection F1-Score</div>
+                    <div class="stat-detail">Random Forest (200 trees)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">&lt;2 min</div>
+                    <div class="stat-label">Alert Latency</div>
+                    <div class="stat-detail">Sensor → Dashboard → SMS</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">0.1%</div>
+                    <div class="stat-label">False Positive Rate</div>
+                    <div class="stat-detail">23 FP out of 22,735 normal</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">99.6%</div>
+                    <div class="stat-label">ROC-AUC</div>
+                    <div class="stat-detail">5-fold CV F1: 85.1% ± 5.5%</div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">
+                        <div class="icon" style="background: rgba(46, 204, 113, 0.15);">✅</div>
+                        What Worked
+                    </div>
+                    <ul>
+                        <li>Pressure deviation emerged as top feature (37.6% importance), validating physics-based intuition</li>
+                        <li>Flow z-score (20%) + pressure (24%) together drive 82% of detections — robust signal</li>
+                        <li>0.1% false positive rate — only 23 false alarms out of 22,735 normal test samples</li>
+                        <li>Model correctly identified all 20 injected leak scenarios across pipe ruptures, slow leaks, and overflows</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <div class="card-title">
+                        <div class="icon" style="background: rgba(255, 140, 66, 0.15);">⚡</div>
+                        Lessons Learned
+                    </div>
+                    <ul>
+                        <li>Wi-Fi coverage gaps caused intermittent data loss in Hostel Block C</li>
+                        <li>Flow sensor calibration drift after 10 days — needs periodic recalibration</li>
+                        <li>Single cloud endpoint created latency spikes during peak data ingestion</li>
+                        <li>Staff training needed: 40% of alerts were acknowledged but not acted upon</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Nitesh Prajapati & Ananya Gupta &ensp;|&ensp; Smart Water Leak Detection</span>
+                <span>3 / 12</span>
+            </div>
+        </div>
+
+        <!-- ===================== SLIDE 4: SCALING STRATEGY ===================== -->
+        <div class="slide" id="slide-3">
+            <p class="slide-tag">Scaling Roadmap</p>
+            <h2 class="slide-title">Three-Phase Software & Analytics Scaling Strategy</h2>
+            <p class="slide-subtitle">Progressive expansion from pilot validation to a multi-campus water intelligence software platform</p>
+
+            <div class="grid-3">
+                <div class="phase-card phase-1">
+                    <div class="phase-header">
+                        <span class="phase-badge" style="background: rgba(46, 204, 113, 0.15); color: var(--accent-green);">Phase 1</span>
+                        <span class="phase-timeline">Months 1–3</span>
+                    </div>
+                    <div class="phase-title">Campus Core Analytics</div>
+                    <div class="phase-nodes">63 → 150 Telemetry Feeds</div>
+                    <ul>
+                        <li>Expand ingestion across all hostel blocks & canteen facilities</li>
+                        <li>Integrate with existing campus gateway infrastructure</li>
+                        <li>Deploy edge pre-processing scripts on local gateway routers</li>
+                        <li>Launch auto-calibration & drift compensation ML modules</li>
+                        <li>Staff onboarding: dashboard SOP & alert response training</li>
+                    </ul>
+                </div>
+
+                <div class="phase-card phase-2">
+                    <div class="phase-header">
+                        <span class="phase-badge">Phase 2</span>
+                        <span class="phase-timeline">Months 4–8</span>
+                    </div>
+                    <div class="phase-title">Full Campus Software Suite</div>
+                    <div class="phase-nodes">150 → 500 Telemetry Feeds</div>
+                    <ul>
+                        <li>Cover academic blocks, research labs, & sports complex</li>
+                        <li>Integrate APIs directly with campus ERP & utility billing systems</li>
+                        <li>Deploy pressure correlation algorithms across main supply lines</li>
+                        <li>Launch dedicated Mobile App for maintenance crew dispatch</li>
+                        <li>Implement automated weekly ML model retraining pipelines</li>
+                    </ul>
+                </div>
+
+                <div class="phase-card phase-3">
+                    <div class="phase-header">
+                        <span class="phase-badge" style="background: rgba(124, 92, 252, 0.15); color: var(--accent-purple);">Phase 3</span>
+                        <span class="phase-timeline">Months 9–18</span>
+                    </div>
+                    <div class="phase-title">Multi-Campus SaaS Platform</div>
+                    <div class="phase-nodes">500 → 2,000+ Telemetry Feeds</div>
+                    <ul>
+                        <li>Replicate software platform across partner universities (MMMUT)</li>
+                        <li>Federated Learning: cross-campus models share anomaly patterns</li>
+                        <li>Central command dashboard displaying regional sustainability KPIs</li>
+                        <li>Open API Marketplace for municipal water authorities & smart cities</li>
+                        <li>Automated ESG compliance & sustainability reporting engine</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Nitesh Prajapati & Ananya Gupta &ensp;|&ensp; Smart Water Leak Detection</span>
+                <span>4 / 12</span>
+            </div>
+        </div>
+
+        <!-- ===================== SLIDE 5: TECHNICAL ARCHITECTURE ===================== -->
+        <div class="slide" id="slide-4">
+            <p class="slide-tag">System Design</p>
+            <h2 class="slide-title">Scaled Software Platform Architecture</h2>
+            <p class="slide-subtitle">Four-layer cloud-native architecture designed to ingest 2,000+ third-party telemetry streams</p>
+
+            <div class="arch-layer">
+                <div class="arch-label edge">Data Ingestion</div>
+                <div class="arch-items">
+                    <div class="arch-item">
+                        <strong>Agnostic Telemetry Sources</strong>
+                        Standard pulse flow, ultrasonic level, & pressure meters
+                    </div>
+                    <div class="arch-item">
+                        <strong>Edge Pre-processing Agent</strong>
+                        Lightweight Python/C++ daemon for noise filtering & rolling averages
+                    </div>
+                    <div class="arch-item">
+                        <strong>Multi-Protocol Gateway</strong>
+                        Ingests REST, MQTT, LoRaWAN, and Modbus feeds without lock-in
+                    </div>
+                </div>
+            </div>
+
+            <div class="arch-connector">▼ &ensp; Secure MQTT / TLS WebSockets &ensp; ▼</div>
+
+            <div class="arch-layer">
+                <div class="arch-label gateway">Edge Buffering</div>
+                <div class="arch-items">
+                    <div class="arch-item">
+                        <strong>Local Broker Layer</strong>
+                        Mosquitto MQTT buffering on campus server/RPi cluster
+                    </div>
+                    <div class="arch-item">
+                        <strong>Low-Latency Edge ML</strong>
+                        TFLite / ONNX Random Forest inference for critical <50ms alarms
+                    </div>
+                    <div class="arch-item">
+                        <strong>Offline Resilience</strong>
+                        72-hour local SQLite buffering ensures zero data loss during network cuts
+                    </div>
+                </div>
+            </div>
+
+            <div class="arch-connector">▼ &ensp; HTTPS / GraphQL APIs &ensp; ▼</div>
+
+            <div class="arch-layer">
+                <div class="arch-label cloud">Cloud AI Suite</div>
+                <div class="arch-items">
+                    <div class="arch-item">
+                        <strong>Cloud Ingestion Hub</strong>
+                        Azure IoT Hub / AWS IoT Core for device authentication & scale
+                    </div>
+                    <div class="arch-item">
+                        <strong>Time-Series Engine</strong>
+                        InfluxDB / TimescaleDB high-performance sensor telemetry store
+                    </div>
+                    <div class="arch-item">
+                        <strong>MLOps Training Pipeline</strong>
+                        Automated feature extraction, A/B model validation, & retraining
+                    </div>
+                    <div class="arch-item">
+                        <strong>Intelligent Alert Engine</strong>
+                        Multi-channel SMS, Email, & Push notification dispatch + SLA escalation
+                    </div>
+                </div>
+            </div>
+
+            <div class="arch-connector">▼ &ensp; REST API / Real-time WebSockets &ensp; ▼</div>
+
+            <div class="arch-layer">
+                <div class="arch-label app">User Interfaces</div>
+                <div class="arch-items">
+                    <div class="arch-item">
+                        <strong>Campus Admin Portal</strong>
+                        Interactive GIS maps, live flow charts, and facility analytics
+                    </div>
+                    <div class="arch-item">
+                        <strong>Crew Mobile App</strong>
+                        Real-time work orders, GPS localization, and repair verification
+                    </div>
+                    <div class="arch-item">
+                        <strong>ESG & Compliance Portal</strong>
+                        Automated water conservation & carbon footprint reports for leadership
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Nitesh Prajapati & Ananya Gupta &ensp;|&ensp; Smart Water Leak Detection</span>
+                <span>5 / 12</span>
+            </div>
+        </div>
+
+        <!-- ===================== SLIDE 6: ML MODEL EVOLUTION ===================== -->
+        <div class="slide" id="slide-5">
+            <p class="slide-tag">AI / ML Strategy</p>
+            <h2 class="slide-title">ML Model Evolution: Pilot → Scale</h2>
+            <p class="slide-subtitle">Improving detection accuracy and operational efficiency through model upgrades</p>
+
+            <div class="model-comparison mb-32">
+                <div class="model-box">
+                    <h3 style="color: var(--accent-orange);">Current: Pilot Model</h3>
+                    <div class="metric-row">
+                        <span class="metric-name">Algorithm</span>
+                        <span class="metric-val">Random Forest</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-name">Features</span>
+                        <span class="metric-val">12 features</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-name">F1-Score</span>
+                        <span class="metric-val">89.8%</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-name">False Positive Rate</span>
+                        <span class="metric-val">0.1%</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-name">ROC-AUC</span>
+                        <span class="metric-val">0.9965</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-name">Training Samples</span>
+                        <span class="metric-val">91,884</span>
+                    </div>
+                </div>
+
+                <div class="model-arrow">
+                    <span>Evolve</span>
+                    ➜
+                    <span>Scale</span>
+                </div>
+
+                <div class="model-box">
+                    <h3 style="color: var(--accent-cyan);">Target: Scaled Model</h3>
+                    <div class="metric-row">
+                        <span class="metric-name">Algorithm</span>
+                        <span class="metric-val">XGBoost + LSTM</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-name">Features</span>
+                        <span class="metric-val">24 features</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-name">Accuracy (F1)</span>
+                        <span class="metric-val" style="color: var(--accent-green);">94%+</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-name">False Positive Rate</span>
+                        <span class="metric-val" style="color: var(--accent-green);">&lt; 4%</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-name">Inference Time</span>
+                        <span class="metric-val" style="color: var(--accent-green);">&lt; 50ms</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-name">Training Data</span>
+                        <span class="metric-val" style="color: var(--accent-green);">6+ months</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">
+                    <div class="icon" style="background: rgba(124, 92, 252, 0.15);">🧠</div>
+                    Key Model Enhancements at Scale
+                </div>
+                <div class="feature-list">
+                    <div class="feature-item">
+                        <div class="fi-icon" style="background: rgba(0, 229, 204, 0.1);">📊</div>
+                        Seasonal & weather-aware baselines
+                    </div>
+                    <div class="feature-item">
+                        <div class="fi-icon" style="background: rgba(79, 172, 254, 0.1);">🔗</div>
+                        Cross-node correlation analysis
+                    </div>
+                    <div class="feature-item">
+                        <div class="fi-icon" style="background: rgba(124, 92, 252, 0.1);">⚡</div>
+                        Edge-deployed TFLite models
+                    </div>
+                    <div class="feature-item">
+                        <div class="fi-icon" style="background: rgba(46, 204, 113, 0.1);">🔄</div>
+                        Automated weekly retraining pipeline
+                    </div>
+                    <div class="feature-item">
+                        <div class="fi-icon" style="background: rgba(255, 140, 66, 0.1);">🏷️</div>
+                        Leak severity classification (S1–S4)
+                    </div>
+                    <div class="feature-item">
+                        <div class="fi-icon" style="background: rgba(255, 87, 87, 0.1);">📍</div>
+                        Pipe segment localization via signal triangulation
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Nitesh Prajapati & Ananya Gupta &ensp;|&ensp; Smart Water Leak Detection</span>
+                <span>6 / 12</span>
+            </div>
+        </div>
+
+        <!-- ===================== SLIDE 7: IMPLEMENTATION TIMELINE ===================== -->
+        <div class="slide" id="slide-6">
+            <p class="slide-tag">Execution Plan</p>
+            <h2 class="slide-title">18-Month Software & Platform Implementation Timeline</h2>
+            <p class="slide-subtitle">Milestone-driven rollout aligned with academic calendar, telemetry expansion, and funding cycles</p>
+
+            <div class="gantt mb-24">
+                <div class="gantt-header">
+                    <span>Workstream</span>
+                    <span>M1</span><span>M2</span><span>M3</span><span>M4</span><span>M5</span><span>M6</span>
+                    <span>M7</span><span>M8</span><span>M9</span><span>M10</span><span>M11</span><span>M12</span>
+                </div>
+
+                <div class="gantt-row">
+                    <div class="gantt-task">Ingestion Setup & APIs</div>
+                    <div class="gantt-bar green" style="grid-column: 2 / 5;">Phase 1 Connectors</div>
+                </div>
+                <div class="gantt-row">
+                    <div class="gantt-task">Telemetry Expansion</div>
+                    <div class="gantt-bar cyan" style="grid-column: 3 / 6;">150 Feeds</div>
+                    <div class="gantt-bar blue" style="grid-column: 7 / 10;">500 Feeds</div>
+                </div>
+                <div class="gantt-row">
+                    <div class="gantt-task">Cloud Data Pipeline</div>
+                    <div class="gantt-bar green" style="grid-column: 2 / 4;">Time-Series Store</div>
+                    <div class="gantt-bar cyan" style="grid-column: 5 / 8;">Azure IoT Hub Scaling</div>
+                </div>
+                <div class="gantt-row">
+                    <div class="gantt-task">ML Engine V2 Dev</div>
+                    <div class="gantt-bar blue" style="grid-column: 3 / 7;">XGBoost + LSTM Models</div>
+                    <div class="gantt-bar purple" style="grid-column: 8 / 11;">Federated ML Core</div>
+                </div>
+                <div class="gantt-row">
+                    <div class="gantt-task">Dashboard & Mobile App</div>
+                    <div class="gantt-bar purple" style="grid-column: 4 / 8;">Admin Portal V2</div>
+                    <div class="gantt-bar orange" style="grid-column: 9 / 12;">Crew App Launch</div>
+                </div>
+                <div class="gantt-row">
+                    <div class="gantt-task">Staff SOP & Onboarding</div>
+                    <div class="gantt-bar green" style="grid-column: 3 / 5;">Hostel Staff</div>
+                    <div class="gantt-bar green" style="grid-column: 7 / 9;">Campus Crew</div>
+                    <div class="gantt-bar green" style="grid-column: 11 / 13;">Regional Teams</div>
+                </div>
+                <div class="gantt-row">
+                    <div class="gantt-task">Multi-Campus Rollout</div>
+                    <div class="gantt-bar purple" style="grid-column: 10 / 14;">MMMUT SaaS Deployment</div>
+                </div>
+            </div>
+
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="dot active"></div>
+                    <div class="tl-title">M0: Current</div>
+                    <div class="tl-desc">63-Node Pilot Live</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="dot"></div>
+                    <div class="tl-title">M3: Gate 1</div>
+                    <div class="tl-desc">150 Feeds, Auto-Drift</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="dot"></div>
+                    <div class="tl-title">M6: Gate 2</div>
+                    <div class="tl-desc">Cloud Migrated, ML V2</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="dot"></div>
+                    <div class="tl-title">M9: Gate 3</div>
+                    <div class="tl-desc">500 Feeds, Mobile App</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="dot"></div>
+                    <div class="tl-title">M12: Gate 4</div>
+                    <div class="tl-desc">MMMUT Pilot Live</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="dot"></div>
+                    <div class="tl-title">M18: Vision</div>
+                    <div class="tl-desc">2,000+ Feeds SaaS</div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Nitesh Prajapati & Ananya Gupta &ensp;|&ensp; Smart Water Leak Detection</span>
+                <span>7 / 12</span>
+            </div>
+        </div>
+
+        <!-- ===================== SLIDE 8: COST ANALYSIS ===================== -->
+        <div class="slide" id="slide-7">
+            <p class="slide-tag">Financial Plan</p>
+            <h2 class="slide-title">Cost-Benefit Analysis & Software Investment</h2>
+            <p class="slide-subtitle">Investment breakdown across software development, cloud hosting, and third-party sensor integration</p>
+
+            <div class="grid-2">
+                <div>
+                    <table class="cost-table mb-24">
+                        <thead>
+                            <tr>
+                                <th>Budget Category</th>
+                                <th>Phase 1 (₹)</th>
+                                <th>Phase 2 (₹)</th>
+                                <th>Phase 3 (₹)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Software & AI Development</td>
+                                <td>85,000</td>
+                                <td>3,20,000</td>
+                                <td>9,50,000</td>
+                            </tr>
+                            <tr>
+                                <td>Cloud Hosting & Ingestion (Annual)</td>
+                                <td>30,000</td>
+                                <td>1,20,000</td>
+                                <td>4,20,000</td>
+                            </tr>
+                            <tr>
+                                <td>3rd-Party Sensor Integration / Procurement</td>
+                                <td>95,000</td>
+                                <td>3,80,000</td>
+                                <td>15,00,000</td>
+                            </tr>
+                            <tr>
+                                <td>System Integration & Gateways</td>
+                                <td>40,000</td>
+                                <td>1,40,000</td>
+                                <td>5,50,000</td>
+                            </tr>
+                            <tr>
+                                <td>Staff Training & Software Support</td>
+                                <td>24,000</td>
+                                <td>80,000</td>
+                                <td>3,80,000</td>
+                            </tr>
+                            <tr class="total-row">
+                                <td>Total Investment Budget</td>
+                                <td class="highlight-value">₹2.74L</td>
+                                <td class="highlight-value">₹10.40L</td>
+                                <td class="highlight-value">₹38.00L</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div>
+                    <div class="card mb-16">
+                        <div class="card-title">
+                            <div class="icon" style="background: rgba(46, 204, 113, 0.15);">💰</div>
+                            Annual ROI & Financial Projections
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-name">Annual Water Bill Savings</span>
+                            <span class="metric-val" style="color: var(--accent-green);">₹12–18L</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-name">Structural Damage Prevented</span>
+                            <span class="metric-val" style="color: var(--accent-green);">₹8–15L</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-name">Staff Operational Efficiency</span>
+                            <span class="metric-val" style="color: var(--accent-green);">₹3–5L</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-name">Estimated Payback Horizon</span>
+                            <span class="metric-val" style="color: var(--accent-cyan);">14–18 months</span>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-title">
+                            <div class="icon" style="background: rgba(0, 229, 204, 0.15);">📉</div>
+                            Software Cost Per Monitored Feed at Scale
+                        </div>
+                        <div class="progress-row">
+                            <span class="progress-label">Pilot (63 Feeds)</span>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 100%; background: linear-gradient(90deg, var(--accent-orange), var(--accent-red));"></div>
+                            </div>
+                            <span class="progress-value">₹1,800</span>
+                        </div>
+                        <div class="progress-row">
+                            <span class="progress-label">Phase 1 (150 Feeds)</span>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 72%; background: linear-gradient(90deg, var(--accent-orange), var(--accent-yellow));"></div>
+                            </div>
+                            <span class="progress-value">₹1,300</span>
+                        </div>
+                        <div class="progress-row">
+                            <span class="progress-label">Phase 2 (500 Feeds)</span>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 50%; background: linear-gradient(90deg, var(--accent-cyan), var(--accent-blue));"></div>
+                            </div>
+                            <span class="progress-value">₹900</span>
+                        </div>
+                        <div class="progress-row">
+                            <span class="progress-label">Phase 3 (2,000+)</span>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 33%; background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan));"></div>
+                            </div>
+                            <span class="progress-value">₹600</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Nitesh Prajapati & Ananya Gupta &ensp;|&ensp; Smart Water Leak Detection</span>
+                <span>8 / 12</span>
+            </div>
+        </div>
+
+        <!-- ===================== SLIDE 9: RISK ASSESSMENT ===================== -->
+        <div class="slide" id="slide-8">
+            <p class="slide-tag">Risk Management</p>
+            <h2 class="slide-title">Risk Assessment & Mitigation</h2>
+            <p class="slide-subtitle">Proactive identification and mitigation strategies for scaling challenges</p>
+
+            <div class="grid-2">
+                <div>
+                    <div class="risk-item">
+                        <div class="risk-level high">🔴</div>
+                        <div class="risk-content">
+                            <div class="risk-title">Network Connectivity Failures</div>
+                            <div class="risk-desc">Large-scale Wi-Fi/LoRa outages could blind the system during critical leak events</div>
+                            <div class="risk-mitigation">Dual-mode connectivity (Wi-Fi + LoRa), 72-hour edge buffering, mesh network redundancy</div>
+                        </div>
+                    </div>
+
+                    <div class="risk-item">
+                        <div class="risk-level high">🔴</div>
+                        <div class="risk-content">
+                            <div class="risk-title">Sensor Degradation & Drift</div>
+                            <div class="risk-desc">Flow sensors lose accuracy over time due to mineral deposits and mechanical wear</div>
+                            <div class="risk-mitigation">Automated drift detection via ML, scheduled quarterly recalibration, self-test routines</div>
+                        </div>
+                    </div>
+
+                    <div class="risk-item">
+                        <div class="risk-level medium">🟠</div>
+                        <div class="risk-content">
+                            <div class="risk-title">Cloud Service Costs Escalation</div>
+                            <div class="risk-desc">Data ingestion costs could spike unpredictably at 2,000+ node scale</div>
+                            <div class="risk-mitigation">Edge pre-processing reduces cloud data by 70%, tiered storage with cold archival, cost alerts</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="risk-item">
+                        <div class="risk-level medium">🟠</div>
+                        <div class="risk-content">
+                            <div class="risk-title">Adoption Resistance</div>
+                            <div class="risk-desc">Maintenance staff may resist new workflows or ignore system alerts</div>
+                            <div class="risk-mitigation">Phased training program, gamified alert response KPIs, management buy-in from day 1</div>
+                        </div>
+                    </div>
+
+                    <div class="risk-item">
+                        <div class="risk-level medium">🟠</div>
+                        <div class="risk-content">
+                            <div class="risk-title">Data Privacy & Security</div>
+                            <div class="risk-desc">IoT endpoints are vulnerable to unauthorized access and data interception</div>
+                            <div class="risk-mitigation">TLS encryption end-to-end, device authentication via X.509 certificates, network segmentation</div>
+                        </div>
+                    </div>
+
+                    <div class="risk-item">
+                        <div class="risk-level low">🟢</div>
+                        <div class="risk-content">
+                            <div class="risk-title">Funding Gaps Between Phases</div>
+                            <div class="risk-desc">University budget cycles may delay procurement for Phase 2/3</div>
+                            <div class="risk-mitigation">Phased ROI reports to justify funding, apply for AICTE/DST grants, explore PPP models</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Nitesh Prajapati & Ananya Gupta &ensp;|&ensp; Smart Water Leak Detection</span>
+                <span>9 / 12</span>
+            </div>
+        </div>
+
+        <!-- ===================== SLIDE 10: IMPACT PROJECTION ===================== -->
+        <div class="slide" id="slide-9">
+            <p class="slide-tag">Impact Assessment</p>
+            <h2 class="slide-title">Projected Impact at Full Scale</h2>
+            <p class="slide-subtitle">Environmental, financial, and operational outcomes with 2,000+ node deployment</p>
+
+            <div class="grid-4 mb-24">
+                <div class="impact-card water">
+                    <div class="impact-icon">💧</div>
+                    <div class="impact-value">35–40%</div>
+                    <div class="impact-label">Water Conservation</div>
+                    <div class="impact-from">Up from pilot baseline</div>
+                </div>
+                <div class="impact-card cost">
+                    <div class="impact-icon">💰</div>
+                    <div class="impact-value">₹25-38L</div>
+                    <div class="impact-label">Annual Savings</div>
+                    <div class="impact-from">Water + infrastructure costs</div>
+                </div>
+                <div class="impact-card response">
+                    <div class="impact-icon">⚡</div>
+                    <div class="impact-value">&lt;30 sec</div>
+                    <div class="impact-label">Alert Response</div>
+                    <div class="impact-from">Down from ~2 min in pilot</div>
+                </div>
+                <div class="impact-card carbon">
+                    <div class="impact-icon">🌱</div>
+                    <div class="impact-value">~120 T</div>
+                    <div class="impact-label">CO₂ Reduction / yr</div>
+                    <div class="impact-from">Water treatment energy saved</div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">
+                        <div class="icon" style="background: rgba(79, 172, 254, 0.15);">📊</div>
+                        Operational KPIs at Scale
+                    </div>
+                    <div class="progress-row">
+                        <span class="progress-label">Detection Accuracy</span>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 94%; background: linear-gradient(90deg, var(--accent-cyan), var(--accent-blue));"></div>
+                        </div>
+                        <span class="progress-value">94%+</span>
+                    </div>
+                    <div class="progress-row">
+                        <span class="progress-label">Network Uptime</span>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 99%; background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan));"></div>
+                        </div>
+                        <span class="progress-value">99.5%</span>
+                    </div>
+                    <div class="progress-row">
+                        <span class="progress-label">False Positive Rate</span>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 4%; background: linear-gradient(90deg, var(--accent-green), var(--accent-green));"></div>
+                        </div>
+                        <span class="progress-value">&lt;4%</span>
+                    </div>
+                    <div class="progress-row">
+                        <span class="progress-label">Alert Acknowledgement</span>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 95%; background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple));"></div>
+                        </div>
+                        <span class="progress-value">95%+</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <div class="icon" style="background: rgba(46, 204, 113, 0.15);">🌍</div>
+                        UN SDG Alignment
+                    </div>
+                    <div class="sdg-row">
+                        <div class="sdg-badge">
+                            <div class="sdg-number sdg6">6</div>
+                            <div class="sdg-text">
+                                <strong>Clean Water & Sanitation</strong>
+                                Reducing freshwater wastage through smart monitoring
+                            </div>
+                        </div>
+                        <div class="sdg-badge">
+                            <div class="sdg-number sdg9">9</div>
+                            <div class="sdg-text">
+                                <strong>Industry & Innovation</strong>
+                                IoT + AI infrastructure for water management
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sdg-row" style="margin-top: 10px;">
+                        <div class="sdg-badge">
+                            <div class="sdg-number sdg11">11</div>
+                            <div class="sdg-text">
+                                <strong>Sustainable Cities</strong>
+                                Smart campus as a model for urban infrastructure
+                            </div>
+                        </div>
+                        <div class="sdg-badge">
+                            <div class="sdg-number sdg13">13</div>
+                            <div class="sdg-text">
+                                <strong>Climate Action</strong>
+                                Reducing carbon footprint via water conservation
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Nitesh Prajapati & Ananya Gupta &ensp;|&ensp; Smart Water Leak Detection</span>
+                <span>10 / 12</span>
+            </div>
+        </div>
+
+        <!-- ===================== SLIDE 11: STAKEHOLDER & PARTNERSHIPS ===================== -->
+        <div class="slide" id="slide-10">
+            <p class="slide-tag">Ecosystem</p>
+            <h2 class="slide-title">Stakeholder Map & Partnership Strategy</h2>
+            <p class="slide-subtitle">Building a collaborative ecosystem for sustainable scaling</p>
+
+            <div class="grid-2 mb-24">
+                <div class="card">
+                    <div class="card-title">
+                        <div class="icon" style="background: rgba(0, 229, 204, 0.15);">🏛️</div>
+                        Institutional Partners
+                    </div>
+                    <ul>
+                        <li><strong>BBDNIIT (AKTU)</strong> — Primary pilot campus, infrastructure access, student research pool</li>
+                        <li><strong>MMMUT</strong> — Phase 3 partner campus, cross-validation of ML models</li>
+                        <li><strong>AKTU Central</strong> — Policy support, potential mandate for affiliated colleges</li>
+                        <li><strong>1M1B Foundation</strong> — Mentorship, showcase platform, global visibility</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <div class="card-title">
+                        <div class="icon" style="background: rgba(79, 172, 254, 0.15);">🤝</div>
+                        Technology & Funding Partners
+                    </div>
+                    <ul>
+                        <li><strong>Microsoft (Azure IoT)</strong> — Cloud credits, IoT Hub, AI/ML platform support</li>
+                        <li><strong>MeitY Startup Hub</strong> — Incubation support, government grant facilitation</li>
+                        <li><strong>DST / AICTE</strong> — Research grants for sustainability innovation</li>
+                        <li><strong>Local Municipal Corp</strong> — Civic data sharing, pilot-to-city pipeline</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">
+                    <div class="icon" style="background: rgba(124, 92, 252, 0.15);">🗺️</div>
+                    Scaling Beyond Campus: Market Opportunity
+                </div>
+                <div class="grid-3">
+                    <div style="text-align: center; padding: 16px;">
+                        <div style="font-size: 2rem; margin-bottom: 8px;">🏫</div>
+                        <h3 style="color: var(--accent-cyan); font-size: 1rem;">Educational Campuses</h3>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 6px;">950+ AKTU-affiliated colleges, IITs, NITs — centralized water infra, tech-savvy adopters</p>
+                        <span class="tag cyan" style="margin-top: 8px;">Immediate Market</span>
+                    </div>
+                    <div style="text-align: center; padding: 16px;">
+                        <div style="font-size: 2rem; margin-bottom: 8px;">🏢</div>
+                        <h3 style="color: var(--accent-blue); font-size: 1rem;">Commercial Complexes</h3>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 6px;">IT parks, malls, hospitals — high water usage, strong ROI sensitivity</p>
+                        <span class="tag blue" style="margin-top: 8px;">Medium-term</span>
+                    </div>
+                    <div style="text-align: center; padding: 16px;">
+                        <div style="font-size: 2rem; margin-bottom: 8px;">🏙️</div>
+                        <h3 style="color: var(--accent-purple); font-size: 1rem;">Smart City Projects</h3>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 6px;">100 Smart Cities Mission — municipal water networks, government procurement</p>
+                        <span class="tag purple" style="margin-top: 8px;">Long-term Vision</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Nitesh Prajapati & Ananya Gupta &ensp;|&ensp; Smart Water Leak Detection</span>
+                <span>11 / 12</span>
+            </div>
+        </div>
+
+        <!-- ===================== SLIDE 12: CONCLUSION & CTA ===================== -->
+        <div class="slide" id="slide-11">
+            <p class="slide-tag">Conclusion</p>
+            <h2 class="slide-title">Summary & Next Steps</h2>
+            <p class="slide-subtitle">From proof-of-concept to production-ready water intelligence platform</p>
+
+            <div class="kpi-row mb-24">
+                <div class="kpi-item">
+                    <div class="kpi-label">Pilot Nodes</div>
+                    <div class="kpi-value">63</div>
+                </div>
+                <div class="kpi-item">
+                    <div class="kpi-label">Data Points</div>
+                    <div class="kpi-value">127K</div>
+                </div>
+                <div class="kpi-item">
+                    <div class="kpi-label">F1-Score</div>
+                    <div class="kpi-value">89.8<span class="kpi-unit">%</span></div>
+                </div>
+                <div class="kpi-item">
+                    <div class="kpi-label">False Positive</div>
+                    <div class="kpi-value">0.1<span class="kpi-unit">%</span></div>
+                </div>
+                <div class="kpi-item">
+                    <div class="kpi-label">ROC-AUC</div>
+                    <div class="kpi-value">0.99<span class="kpi-unit">65</span></div>
+                </div>
+                <div class="kpi-item">
+                    <div class="kpi-label">Target Scale</div>
+                    <div class="kpi-value">2,000<span class="kpi-unit">+</span></div>
+                </div>
+            </div>
+
+            <div class="cta-box mb-24">
+                <h2>Ready to Scale Smart Water Intelligence</h2>
+                <p>
+                    Our 63-node pilot generated 127,008 sensor readings and trained a Random Forest model achieving 89.8% F1-score with just 0.1% false positives.
+                    The three-phase scaling strategy lays a clear path to campus-wide — and ultimately multi-campus — deployment,
+                    with a projected payback within 18 months and alignment with 4 UN Sustainable Development Goals.
+                </p>
+                <div class="cta-tags">
+                    <div class="cta-tag">🔧 Phase 1 Ready</div>
+                    <div class="cta-tag">📊 Data-Driven ROI</div>
+                    <div class="cta-tag">🌍 SDG 6 · 9 · 11 · 13</div>
+                    <div class="cta-tag">🤖 AI-Powered</div>
+                    <div class="cta-tag">♻️ Sustainable</div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">
+                        <div class="icon" style="background: rgba(0, 229, 204, 0.15);">🎯</div>
+                        Immediate Next Steps
+                    </div>
+                    <ul>
+                        <li>Present Phase 1 software rollout plan to university administration & sustainability committee.</li>
+                        <li>Establish standardized API connectors for existing campus hostel smart water meters.</li>
+                        <li>Deploy edge pre-processing script on central campus server for telemetry aggregation.</li>
+                        <li>Initiate XGBoost + LSTM time-series model training pipeline with historical pilot datasets.</li>
+                        <li>Formalize academic collaboration MoU with MMMUT for Phase 3 cross-campus SaaS testbed.</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <div class="card-title">
+                        <div class="icon" style="background: rgba(124, 92, 252, 0.15);">📞</div>
+                        Contact & Resources
+                    </div>
+                    <ul>
+                        <li><strong>Nitesh Prajapati</strong> — BBDNIIT (AKTU)<br><span style="color: var(--text-muted);">IoT Telemetry & System Architecture</span></li>
+                        <li><strong>Ananya Gupta</strong> — MMMUT<br><span style="color: var(--text-muted);">Machine Learning & AI Analytics Suite</span></li>
+                        <li><strong>Program:</strong> 1M1B Green Skills & Applied AI for Climate Action</li>
+                        <li><strong>GitHub Repo:</strong> github.com/smart-water-leak-detection/watersense-ai</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="slide-footer">
+                <span>Nitesh Prajapati & Ananya Gupta &ensp;|&ensp; Smart Water Leak Detection</span>
+                <span>12 / 12</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== NAVIGATION BAR ===================== -->
+    <nav class="nav-bar">
+        <span class="nav-info" id="slideCounter">Slide 1 / 12</span>
+        <div class="nav-dots" id="navDots"></div>
+        <div class="nav-buttons">
+            <button class="nav-btn" id="prevBtn" disabled>← Prev</button>
+            <button class="nav-btn" id="nextBtn">Next →</button>
+        </div>
+    </nav>
+
+    <script>
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        let currentSlide = 0;
+
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const slideCounter = document.getElementById('slideCounter');
+        const navDotsContainer = document.getElementById('navDots');
+
+        // Create navigation dots
+        for (let i = 0; i < totalSlides; i++) {
+            const dot = document.createElement('button');
+            dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+            dot.addEventListener('click', () => goToSlide(i));
+            navDotsContainer.appendChild(dot);
+        }
+
+        function goToSlide(index) {
+            if (index < 0 || index >= totalSlides) return;
+
+            const prev = currentSlide;
+            currentSlide = index;
+
+            slides.forEach((slide, i) => {
+                slide.classList.remove('active', 'prev');
+                if (i === currentSlide) {
+                    slide.classList.add('active');
+                } else if (i < currentSlide) {
+                    slide.classList.add('prev');
+                }
+            });
+
+            // Update dots
+            document.querySelectorAll('.nav-dot').forEach((dot, i) => {
+                dot.classList.toggle('active', i === currentSlide);
+            });
+
+            // Update counter
+            slideCounter.textContent = `Slide ${currentSlide + 1} / ${totalSlides}`;
+
+            // Update buttons
+            prevBtn.disabled = currentSlide === 0;
+            nextBtn.disabled = currentSlide === totalSlides - 1;
+        }
+
+        prevBtn.addEventListener('click', () => goToSlide(currentSlide - 1));
+        nextBtn.addEventListener('click', () => goToSlide(currentSlide + 1));
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+                e.preventDefault();
+                goToSlide(currentSlide + 1);
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                goToSlide(currentSlide - 1);
+            } else if (e.key === 'Home') {
+                e.preventDefault();
+                goToSlide(0);
+            } else if (e.key === 'End') {
+                e.preventDefault();
+                goToSlide(totalSlides - 1);
+            }
+        });
+
+        // Touch/swipe support
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        document.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+
+        document.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            const diff = touchStartX - touchEndX;
+            if (Math.abs(diff) > 50) {
+                if (diff > 0) goToSlide(currentSlide + 1);
+                else goToSlide(currentSlide - 1);
+            }
+        });
+    </script>
+</body>
+</html>
