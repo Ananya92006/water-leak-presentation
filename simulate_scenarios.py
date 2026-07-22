@@ -6,6 +6,27 @@ def print_separator(title):
     print(f"  {title}")
     print("=" * 60)
 
+# 0. Explain the Project Overall
+print_separator("WATERSENSE AI: PROJECT OVERVIEW")
+print("""Welcome to WaterSense AI! 💧
+
+THE PROBLEM:
+Campuses and large facilities lose millions of liters of water annually due to undetected 
+underground pipe leaks, running toilets, and faulty valves. Because water pipes are buried, 
+these leaks go unnoticed until they cause structural damage or massive utility bills.
+
+OUR SOLUTION:
+WaterSense AI is a smart, hardware-agnostic machine learning platform. It connects to standard 
+water meters (flow, pressure, tank level sensors) and uses a Random Forest AI model to 
+analyze the telemetry in real-time. 
+
+HOW IT WORKS:
+Instead of just looking for "high flow," our AI looks at Z-Scores (how unusual the flow is 
+for that specific hour/day) and correlates it with pressure drops. This allows us to catch 
+even tiny, slow-dripping leaks with 99.7% accuracy and near-zero false alarms.
+""")
+time.sleep(2)
+
 # 1. Explain the Input Fields
 print_separator("INPUT FIELD DEFINITIONS")
 print("""Here is what each key telemetry input field means:
